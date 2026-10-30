@@ -1,0 +1,1711 @@
+# MASTER PROMPT: NexusIQ — Enterprise AI Knowledge Platform
+## Secure, Multi-Tenant, RAG-Powered Enterprise Knowledge Workspace
+
+Act as a Senior Full-Stack Engineer, AI Engineer, Software Architect, Security Engineer, Database Designer, and UI/UX Designer.
+
+Build a complete, production-oriented web application called **NexusIQ — Enterprise AI Knowledge Platform**.
+
+The application should allow companies to securely upload internal documents, organize knowledge by teams and departments, ask natural-language questions, receive AI-generated answers with verifiable source citations, and manage enterprise knowledge through granular access controls and analytics.
+
+This must be a functional, end-to-end application, not just a landing page or UI prototype.
+
+Every major feature must have a working frontend, backend API, database integration, validation, loading states, error handling, and appropriate security controls.
+
+**Core principle: Security must be enforced before retrieval. Unauthorized document content must never be passed to the LLM, included in prompts, returned through APIs, or exposed through search results.**
+
+---
+
+# 1. PRODUCT VISION
+
+Build a secure AI workspace that acts as an intelligent knowledge assistant for organizations.
+
+Example use cases:
+- Employees ask questions about HR policies.
+- Engineering teams search internal technical documentation.
+- Sales teams retrieve product information and sales playbooks.
+- HR teams answer questions about leave, benefits, and onboarding.
+- Managers manage department-specific knowledge.
+- Administrators monitor platform usage, AI costs, indexing failures, and security-related events.
+
+Example question:
+
+"What is our annual leave policy for employees in India?"
+
+The AI should answer using authorized company documents, cite the relevant documents and pages, and provide clickable references to the original sources.
+
+If the answer cannot be found in the accessible documents, the AI must clearly say that it could not find sufficient evidence. It must not fabricate company policies.
+
+---
+
+# 2. REQUIRED TECHNOLOGY STACK
+
+Use a modern, maintainable TypeScript-based architecture.
+
+### Frontend
+- Next.js with App Router
+- React
+- TypeScript with strict mode
+- Tailwind CSS
+- shadcn/ui or an equivalent accessible component library
+- Lucide icons
+- React Hook Form and Zod
+- TanStack Query where client-side server-state management is beneficial
+- Recharts for analytics
+
+### Backend
+- Node.js
+- TypeScript
+- Next.js server-side APIs or a separate Express/Fastify API service
+- REST API architecture with versioned endpoints
+- Zod validation for incoming requests
+- Server-side authentication and authorization middleware
+
+Choose one coherent backend architecture and implement it consistently. Do not create redundant API layers.
+
+### Database — MongoDB ONLY
+- MongoDB Atlas as the primary database
+- MongoDB Node.js driver or Mongoose as the data-access layer
+- MongoDB Atlas Vector Search for semantic retrieval
+- MongoDB Search or MongoDB-supported text search for keyword retrieval, where available
+- MongoDB aggregation pipelines for analytics
+- MongoDB indexes, schema validation, and transactions where appropriate
+- BSON ObjectId or UUID identifiers used consistently
+- Tenant-scoped document models and queries
+
+**Do not use PostgreSQL, pgvector, Prisma, MySQL, SQLite, or any relational database as the primary application database.**
+
+Use MongoDB for users, organizations, memberships, departments, workspaces, documents, chunks, conversations, messages, citations, feedback, notifications, audit logs, and usage records.
+
+Use MongoDB Atlas Vector Search for embeddings. Do not attempt to implement vector search by loading every embedding into application memory.
+
+For local development, support MongoDB Community Edition through Docker where compatible. Clearly document that Atlas-specific Vector Search features may require MongoDB Atlas or a compatible supported environment.
+
+### Background processing
+- Redis
+- BullMQ for document processing and asynchronous jobs
+
+Redis is used for job queues, transient caching, and rate-limiting support where appropriate. MongoDB remains the source of truth for persistent application data.
+
+### File storage
+- S3-compatible object storage
+- Local development storage adapter if cloud storage credentials are unavailable
+- Store file metadata in MongoDB and document files in private object storage
+
+### AI and retrieval
+- Provider abstraction for LLMs and embedding models
+- OpenAI API as the initial provider
+- Configurable embedding model
+- Configurable chat model
+- Document parsing using suitable PDF, DOCX, TXT, and Markdown parsers
+- Chunking, embeddings, hybrid retrieval, reranking where available, and source citations
+
+### Authentication
+- Auth.js or an equivalent secure authentication implementation
+- Email/password authentication with properly hashed passwords, if implemented directly
+- Email verification and password reset flows
+- Optional OAuth integration
+- Secure session management
+
+### Testing and deployment
+- Vitest or Jest
+- React Testing Library
+- Playwright for end-to-end testing
+- Docker and Docker Compose
+- GitHub Actions for CI
+- Production deployment documentation
+
+Use currently supported, compatible package versions. Do not invent APIs or use deprecated packages.
+
+---
+
+# 3. USER ROLES AND PERMISSIONS
+
+Implement true multi-tenant isolation.
+
+Each organization must have its own isolated users, workspaces, documents, chats, usage records, and settings.
+
+### Platform roles
+
+1. Platform Super Admin
+   - Manage platform-level configuration.
+   - View platform-wide operational metrics.
+   - Manage organizations when explicitly authorized.
+   - Access operational health information without automatically gaining access to private document content.
+
+2. Organization Owner
+   - Manage organization settings.
+   - Invite and remove members.
+   - Assign organization-level roles.
+   - Manage billing or usage limits if billing is implemented.
+   - Access organization analytics.
+
+3. Organization Admin
+   - Manage members, departments, workspaces, and document policies.
+   - View usage analytics and processing failures.
+   - Configure AI settings allowed by the organization.
+
+4. Department Manager
+   - Manage authorized department workspaces and knowledge resources.
+   - Invite or manage members only where granted permission.
+   - View department-level analytics.
+
+5. Employee
+   - Search and chat with documents they are authorized to access.
+   - Upload documents only when permitted.
+   - View their own chat history.
+   - Submit answer feedback.
+
+6. Guest or Read-Only Member
+   - Access explicitly shared workspaces and documents.
+   - Cannot upload, modify, or administer resources unless granted additional permissions.
+
+Implement permission checks on the server, not just in the frontend.
+
+Support permissions such as:
+- Organization membership
+- Department membership
+- Workspace membership
+- Document ownership
+- Document-level grants
+- Read, upload, edit, delete, and manage permissions
+
+Define how permissions combine. Use explicit, documented rules and default-deny behavior.
+
+A user must never access another organization's data by modifying a URL, API parameter, document ID, conversation ID, or workspace ID.
+
+---
+
+# 4. AUTHENTICATION AND ONBOARDING
+
+Implement the following complete flows:
+
+- Sign up
+- Sign in
+- Sign out
+- Email verification
+- Forgot password
+- Password reset
+- Session expiration
+- Session revocation where supported
+- Protected routes
+- User profile management
+- Organization creation
+- Organization switching for users belonging to multiple organizations
+- Invitation-based onboarding
+- Invitation acceptance and expiration
+- Role assignment
+- Department assignment
+- Account deactivation
+
+Create an onboarding wizard:
+
+Step 1: Create an organization.
+
+Step 2: Enter organization name and basic details.
+
+Step 3: Create the first workspace.
+
+Step 4: Invite team members.
+
+Step 5: Upload the first documents.
+
+Step 6: Start asking questions.
+
+Never trust role names or organization IDs supplied by the browser without validating the authenticated user's actual permissions.
+
+---
+
+# 5. APPLICATION LAYOUT AND NAVIGATION
+
+Build a polished enterprise SaaS interface.
+
+### Main navigation
+- Overview
+- AI Assistant
+- Knowledge Base
+- Documents
+- Workspaces
+- Departments
+- Team Members
+- Activity Logs
+- Analytics
+- Settings
+
+Show administrative pages only to users with appropriate permissions.
+
+### Global header
+- Organization switcher
+- Workspace selector
+- Global search
+- Notifications
+- Help menu
+- User avatar and profile menu
+
+### UI requirements
+- Professional enterprise design
+- Responsive desktop, tablet, and mobile layouts
+- Light and dark themes
+- Accessible color contrast
+- Consistent typography and spacing
+- Skeleton loaders
+- Empty states
+- Toast notifications
+- Confirmation dialogs for destructive operations
+- Pagination or infinite scrolling where appropriate
+- Search, sorting, and filtering
+- Keyboard-accessible interactions
+- Clear permission-denied states
+
+Do not make every page look like a generic dashboard template. Prioritize clarity, trust, and efficient knowledge discovery.
+
+---
+
+# 6. DASHBOARD
+
+Create a personalized dashboard based on the user's role and permissions.
+
+### Overview widgets
+- Total documents accessible to the user
+- Total indexed documents
+- Documents processing
+- Failed document jobs
+- Available workspaces
+- Recent AI conversations
+- Recently uploaded documents
+- Most-used knowledge sources, where authorized
+- Recent activity
+- Team activity, where authorized
+
+### Organization admin metrics
+- Active members
+- Document storage usage
+- Total questions asked
+- AI token consumption
+- Estimated AI cost
+- Average response latency
+- Retrieval success rate
+- Answer feedback statistics
+- Indexing success and failure rates
+
+Provide date filters:
+- Last 24 hours
+- Last 7 days
+- Last 30 days
+- Custom date range
+
+All metrics must come from real MongoDB records or clearly labeled demo data.
+
+Never expose other organizations' metrics to ordinary organization members.
+
+---
+
+# 7. DOCUMENT MANAGEMENT
+
+Build a complete document management system.
+
+### Supported formats
+- PDF
+- DOCX
+- TXT
+- Markdown
+
+Allow additional formats only after implementing safe parsers and validation.
+
+### Upload functionality
+- Drag-and-drop upload
+- File picker
+- Multiple file uploads
+- Upload progress
+- File size limits
+- File type validation
+- Duplicate detection
+- Upload cancellation where possible
+- Upload metadata
+- Document title and description
+- Department and workspace selection
+- Tags and categories
+- Visibility and access settings
+- Optional document expiration
+
+Validate actual file content and file signatures where appropriate. Do not rely only on filenames or MIME types.
+
+### Document library
+
+Display:
+- Document name
+- File type
+- File size
+- Uploader
+- Department
+- Workspace
+- Created date
+- Updated date
+- Processing status
+- Indexing status
+- Access level
+
+Provide:
+- Search
+- Filtering
+- Sorting
+- Pagination
+- Bulk selection
+- Bulk tagging
+- Bulk movement
+- Bulk deletion with confirmation
+- Document preview
+- Download
+- Rename
+- Metadata editing
+- Access management
+- Re-indexing
+- Processing error details for authorized users
+
+### Document lifecycle statuses
+- Uploaded
+- Queued
+- Extracting
+- Chunking
+- Embedding
+- Indexed
+- Failed
+- Deleting
+
+Implement a real status transition system rather than hardcoded badges.
+
+When a document is deleted, remove it from future retrieval immediately. Delete its vectors and stored content according to the documented retention policy. Handle asynchronous cleanup failures safely.
+
+---
+
+# 8. BACKGROUND DOCUMENT INDEXING PIPELINE
+
+Implement document ingestion using BullMQ and Redis.
+
+The user-facing upload API must not wait for a large document to finish indexing.
+
+### Processing pipeline
+
+1. Authenticate the uploader.
+2. Validate organization membership and upload permission.
+3. Validate file size, file type, and file contents.
+4. Upload the file to private object storage.
+5. Create the document record in MongoDB.
+6. Create an indexing job.
+7. Extract text in a background worker.
+8. Extract page and section metadata.
+9. Normalize and clean extracted text.
+10. Split text into overlapping semantic chunks.
+11. Generate embeddings in batches.
+12. Store chunks and embedding vectors in MongoDB.
+13. Update document indexing status.
+14. Record processing duration and token usage where available.
+15. Notify the user when processing completes or fails.
+
+### Chunking requirements
+- Configurable chunk size and overlap
+- Token-aware splitting where possible
+- Preserve page numbers
+- Preserve headings and section metadata
+- Preserve source offsets where supported
+- Avoid empty chunks
+- Avoid duplicate chunks
+- Support documents containing many pages
+
+Each chunk should store:
+- Chunk ID
+- Organization ID
+- Document ID
+- Page number or page range
+- Chunk index
+- Text content
+- Embedding vector
+- Section title
+- Relevant metadata
+- Created timestamp
+
+### MongoDB storage design for chunks
+
+Use a dedicated `documentChunks` collection.
+
+Store embeddings as BSON numeric arrays compatible with the selected Atlas Vector Search index configuration.
+
+Create the required vector index with:
+- Embedding field
+- Vector dimensions matching the selected embedding model
+- Similarity metric
+- Organization ID filter field
+- Document ID filter field
+- Workspace ID and other supported filter fields
+
+Use a separate, versioned index or controlled migration when the embedding model or dimensions change.
+
+Do not store embeddings as unstructured strings.
+
+Do not retrieve all chunks into application memory to calculate similarity manually.
+
+### Reliability
+- Retry transient failures with exponential backoff
+- Set maximum retry counts
+- Support failed-job inspection
+- Handle provider rate limits
+- Implement concurrency limits
+- Process large documents in batches
+- Make jobs idempotent
+- Prevent duplicate indexing
+- Support worker restarts
+- Add timeouts
+- Add dead-letter or terminal-failure handling
+- Record structured error information without leaking sensitive document content
+
+Do not store fake embeddings or mark documents as indexed before successful completion.
+
+---
+
+# 9. RAG-BASED AI ASSISTANT
+
+Build an interactive AI chat interface grounded in internal company documents.
+
+### Chat interface
+- New conversation
+- Conversation history
+- Conversation titles
+- Rename conversations
+- Delete conversations
+- Search previous conversations
+- Streaming AI responses
+- Stop generation
+- Retry failed response
+- Copy answer
+- Regenerate response
+- Thumbs-up and thumbs-down feedback
+- Follow-up questions
+- Suggested prompts
+- Source citation panel
+
+### Question-answering pipeline
+
+When a user asks a question:
+
+1. Authenticate the user.
+2. Resolve the active organization and workspace.
+3. Verify the user's membership and permissions.
+4. Apply document access filters before retrieval.
+5. Generate a query embedding.
+6. Search authorized chunks using MongoDB Atlas Vector Search.
+7. Perform lexical search using supported MongoDB text-search functionality.
+8. Combine results using a documented hybrid-ranking strategy.
+9. Optionally rerank authorized candidates.
+10. Remove irrelevant or duplicate chunks.
+11. Apply a configurable relevance threshold.
+12. Build a context window only from authorized evidence.
+13. Send the question and authorized context to the LLM.
+14. Stream the generated answer.
+15. Return citations linked to actual retrieved chunks.
+16. Persist the answer and source references in MongoDB.
+17. Record latency, token usage, estimated cost, and feedback metadata.
+
+### Retrieval requirements
+- Semantic search
+- Keyword search
+- Hybrid retrieval
+- Configurable top-k
+- Optional reranking
+- Similarity thresholds
+- Workspace filters
+- Department filters
+- Document type filters
+- Date filters
+- Metadata filtering
+- Duplicate-source reduction
+
+**CRITICAL SECURITY REQUIREMENT:** Permission filtering must happen before document content is fetched for LLM context. Do not retrieve unrestricted chunks and filter them after the LLM has received them.
+
+Implement the following protections:
+- Derive organization scope from authenticated server-side membership.
+- Build authorization predicates on the server.
+- Use supported Atlas Vector Search pre-filtering for tenant and access-related metadata.
+- Apply additional authorization checks before returning chunk contents.
+- Ensure reranking receives only authorized candidates.
+- Ensure caches cannot return results across users or organizations.
+- Prevent fallback queries from silently removing security filters.
+
+Where Atlas Vector Search pre-filtering cannot express the complete permission policy, use a safe retrieval design that ensures unauthorized content is never passed to the LLM. For example, retrieve candidate identifiers using indexed tenant-scoped filters, validate the complete permissions in MongoDB, and only then fetch authorized chunk text.
+
+Never use post-LLM filtering as an access-control mechanism.
+
+### AI answer rules
+- Answer only when sufficient evidence exists.
+- Cite the sources that support factual claims.
+- Provide document title, page number, and relevant excerpt where available.
+- Link citations to the corresponding authorized document or preview location.
+- Clearly communicate when evidence is insufficient.
+- Distinguish sourced facts from reasonable interpretation.
+- Do not invent citations.
+- Do not claim a document supports a statement if the cited text does not support it.
+- Allow the user to open the original source.
+
+### Example response
+
+Question:
+"What is the company's annual leave policy?"
+
+Answer:
+"According to the available HR policy, eligible employees receive the annual leave allowance specified in the policy document."
+
+Sources:
+- HR Leave Policy.pdf — Page 4
+- Employee Handbook.docx — Section: Leave Entitlements
+
+Use actual source content and page numbers in real responses. This example is illustrative only; do not hardcode it as an AI answer.
+
+### Conversation memory
+- Maintain context within a conversation.
+- Store conversation messages in MongoDB.
+- Reapply the user's current access permissions to every new retrieval.
+- Never treat previously retrieved content as permanently authorized.
+- Prevent conversation history from leaking across users.
+- If access to a source is revoked, do not reveal its protected contents through later follow-up answers.
+
+---
+
+# 10. KNOWLEDGE SEARCH
+
+Build a dedicated enterprise search experience separate from chat.
+
+Features:
+- Search documents using natural language
+- Keyword search
+- Semantic search
+- Hybrid search
+- Search suggestions
+- Recent searches
+- Search filters
+- Sort by relevance or modification date
+- Highlight matching text
+- Display relevant excerpts
+- Show document metadata
+- Open document preview
+- Save or bookmark useful documents
+- Search only within accessible workspaces
+- Empty-state recommendations
+
+Implement query pagination and reasonable query limits.
+
+Use MongoDB-supported search indexes and Atlas Vector Search as appropriate for the deployment.
+
+Search results must be authorization-filtered before being returned.
+
+Do not expose unauthorized document titles, snippets, metadata, filenames, or even the existence of restricted documents through search.
+
+---
+
+# 11. WORKSPACES AND DEPARTMENTS
+
+Users should be able to organize knowledge by teams and business functions.
+
+### Workspaces
+- Create workspace
+- Rename workspace
+- Update description
+- Assign workspace owners
+- Add or remove members
+- Configure workspace roles
+- Add or move documents
+- Manage workspace-specific permissions
+- Archive workspace
+- Delete workspace with confirmation
+
+### Departments
+- Create and edit departments
+- Assign department managers
+- Add and remove members
+- Associate users with departments
+- Associate documents with departments
+- Filter search by department
+- View department analytics
+
+### Access-control rules
+- Enforce organization isolation.
+- Enforce workspace membership rules.
+- Enforce document-level permissions.
+- Define and test how explicit grants and group memberships interact.
+- Ensure removed members lose access promptly.
+- Prevent access through guessed URLs.
+- Prevent permission escalation through bulk actions or alternate APIs.
+
+Use explicit policies rather than relying on UI visibility.
+
+---
+
+# 12. DOCUMENT PERMISSIONS AND SECURITY
+
+This is the most important engineering component.
+
+Support:
+- Private documents
+- Workspace-visible documents
+- Department-visible documents
+- Explicitly shared documents
+- Restricted administrative documents
+
+Implement a centralized authorization service with functions such as:
+- canViewDocument()
+- canUploadDocument()
+- canEditDocument()
+- canDeleteDocument()
+- canManageWorkspace()
+- canInviteMember()
+- canViewAnalytics()
+
+The backend must enforce these checks on every relevant request.
+
+### Mandatory security protections
+
+1. Tenant isolation
+   - Every tenant-owned MongoDB document must have an organization scope.
+   - Validate tenant ownership for every object access.
+   - Use compound indexes beginning with tenant-related fields where appropriate.
+   - Validate relationships between organization, workspace, document, and chunk records.
+
+2. Broken object-level authorization prevention
+   - Verify authorization on every document, conversation, workspace, and member endpoint.
+   - Do not rely on unpredictable IDs as a substitute for authorization.
+
+3. Secure document storage
+   - Keep object storage private.
+   - Use short-lived signed URLs only after authorization.
+   - Never expose storage credentials to the frontend.
+
+4. Secure vector retrieval
+   - Apply authorization filters before returning chunks.
+   - Use MongoDB Atlas Vector Search pre-filtering where supported.
+   - Ensure the embedding search implementation cannot silently bypass tenant filters.
+
+5. Prompt injection resistance
+   - Treat document contents as untrusted data.
+   - Treat retrieved instructions as evidence, not system instructions.
+   - Never allow document text to override application security rules.
+   - Do not allow the model to authorize its own retrieval.
+   - Keep tools and privileged operations outside model-controlled authorization decisions.
+
+6. Input and output protection
+   - Validate and constrain user inputs.
+   - Sanitize rendered HTML and Markdown.
+   - Prevent XSS and injection attacks.
+   - Use safe download headers and content-disposition handling.
+
+7. Authentication protection
+   - Secure session cookies.
+   - Rate-limit sensitive authentication endpoints.
+   - Protect against brute-force attacks.
+   - Use CSRF protection where applicable.
+   - Implement safe password-reset tokens.
+
+8. API protection
+   - Apply rate limits.
+   - Validate request bodies, parameters, and uploaded files.
+   - Apply request size limits.
+   - Avoid leaking stack traces or internal errors.
+
+9. Secret management
+   - Use environment variables or a secrets manager.
+   - Never commit API keys or credentials.
+   - Never expose server-side secrets through NEXT_PUBLIC variables.
+
+10. Privacy
+   - Minimize sensitive logging.
+   - Avoid storing full prompts or document text in logs unless explicitly required and protected.
+   - Document retention and deletion policies.
+   - Define whether providers retain API data and configure them appropriately.
+
+Create a threat model and document known security assumptions.
+
+---
+
+# 13. ADMIN DASHBOARD AND ANALYTICS
+
+Build a real administrative analytics dashboard.
+
+### Metrics
+- Total questions
+- Daily and weekly active users
+- Document uploads
+- Indexed documents
+- Failed indexing jobs
+- Average response latency
+- Median and p95 latency
+- Input and output tokens
+- Embedding usage
+- Estimated AI spend
+- Cost per question
+- Retrieval latency
+- Time to first token
+- Positive and negative feedback
+- Citation coverage
+- Retrieval success rate
+
+### Charts
+- Questions over time
+- AI spend over time
+- Usage by department
+- Usage by model
+- Latency distribution
+- Indexing success versus failure
+- User activity trends
+
+### Filters
+- Date range
+- Department
+- Workspace
+- Model
+- User, when authorized
+
+### Cost calculations
+- Track provider-reported usage where available.
+- Use configurable model pricing tables with effective dates.
+- Distinguish actual provider-reported cost from estimated cost.
+- Handle missing usage data explicitly.
+- Do not hardcode a single token price into application logic.
+
+Use MongoDB aggregation pipelines and indexed queries for analytics. Avoid unbounded collection scans.
+
+Only expose metrics at the granularity permitted by the user's role and the organization's privacy policy.
+
+---
+
+# 14. AI PROVIDER MANAGEMENT
+
+Create a provider abstraction that supports future expansion.
+
+Features:
+- Configurable chat model
+- Configurable embedding model
+- Model selection by organization, if enabled
+- Per-model token limits
+- Request timeout
+- Retry policy
+- Provider error handling
+- Usage tracking
+- Token limits
+- Cost estimation
+- Rate-limit handling
+- Circuit-breaker behavior where appropriate
+
+Implement at least one real provider integration.
+
+If provider credentials are unavailable, the application should display a clear configuration state. Do not silently return fake AI answers.
+
+Never expose API keys in frontend code.
+
+Ensure the selected embedding model produces vectors with the expected dimensions and that changing embedding models triggers a controlled re-indexing strategy.
+
+---
+
+# 15. FEEDBACK AND ANSWER QUALITY
+
+Allow users to rate answers.
+
+Features:
+- Thumbs up
+- Thumbs down
+- Optional feedback comment
+- Incorrect citation report
+- Missing information report
+- Feedback history for authorized administrators
+
+Track:
+- Answer acceptance rate
+- Citation usage
+- Negative feedback rate
+- Retrieval relevance
+- No-answer frequency
+- Failed question rate
+
+Build a quality-review interface where authorized administrators can investigate reported answers using appropriately protected records.
+
+Do not treat user feedback as proof that an answer is factually correct.
+
+---
+
+# 16. NOTIFICATIONS AND ACTIVITY LOGS
+
+### Notifications
+- Document indexed successfully
+- Document processing failed
+- Invitation received
+- Invitation accepted
+- Workspace membership changed
+- Important administrative changes
+
+Implement in-app notifications with read/unread state.
+
+Email notifications may be optional but should use a configurable provider.
+
+### Audit logs
+Record important events:
+- Login and logout events where appropriate
+- Invitation creation and acceptance
+- Role changes
+- Document upload and deletion
+- Permission changes
+- Workspace changes
+- Administrative configuration changes
+- Data export requests
+- Failed authorization attempts, without leaking sensitive content
+
+Each event should include:
+- Event type
+- Actor ID where available
+- Organization ID
+- Target resource type and ID
+- Timestamp
+- Request or correlation ID
+- Relevant non-sensitive metadata
+
+Audit logs must be protected against unauthorized modification and access. Avoid logging raw passwords, access tokens, or sensitive document contents.
+
+---
+
+# 17. DATABASE DESIGN — MONGODB
+
+Design a maintainable MongoDB data model with explicit relationships, validation, and appropriate indexes.
+
+Use separate collections for major entities. Avoid placing unlimited conversations, messages, document chunks, or audit events inside a single growing document.
+
+Include, at minimum, the following collections:
+
+- users
+- organizations
+- organizationMemberships
+- invitations
+- departments
+- departmentMemberships
+- workspaces
+- workspaceMemberships
+- documents
+- documentPermissions
+- documentChunks
+- conversations
+- conversationMessages
+- messageSources
+- answerFeedback
+- notifications
+- auditLogs
+- documentProcessingJobs or processing metadata
+- usageEvents
+- modelPricing
+- organizationSettings
+- API keys or integrations only if that feature is implemented
+
+### Schema requirements
+- Consistent ObjectId or UUID strategy
+- Explicit organizationId fields on tenant-owned records
+- Appropriate references between collections
+- Created and updated timestamps
+- MongoDB schema validation for important fields
+- Unique indexes where necessary
+- Compound indexes for tenant-scoped access
+- Pagination-friendly indexes
+- Vector Search indexes
+- Text-search indexes
+- Safe soft deletion where justified
+- Explicit retention and cleanup rules
+
+### Collection design
+
+**users**
+- name
+- email
+- passwordHash, if local authentication is implemented
+- profile information
+- account status
+- email verification status
+- createdAt
+- updatedAt
+
+**organizations**
+- name
+- slug
+- ownerId
+- settings
+- status
+- createdAt
+- updatedAt
+
+**organizationMemberships**
+- organizationId
+- userId
+- role
+- status
+- departmentIds where appropriate
+- joinedAt
+
+Create a unique compound index on organizationId and userId.
+
+**departments**
+- organizationId
+- name
+- description
+- managerIds
+- createdAt
+- updatedAt
+
+**workspaces**
+- organizationId
+- name
+- description
+- ownerId
+- visibility
+- status
+- createdAt
+- updatedAt
+
+**workspaceMemberships**
+- organizationId
+- workspaceId
+- userId
+- role
+- status
+
+**documents**
+- organizationId
+- workspaceId
+- departmentId
+- uploadedBy
+- title
+- description
+- storageKey
+- mimeType
+- fileSize
+- checksum
+- tags
+- visibility
+- permission metadata
+- processingStatus
+- indexingStatus
+- indexingVersion
+- pageCount
+- createdAt
+- updatedAt
+- deletedAt, where soft deletion is used
+
+**documentPermissions**
+- organizationId
+- documentId
+- principalType
+- principalId
+- permissions
+- grantedBy
+- createdAt
+- updatedAt
+
+**documentChunks**
+- organizationId
+- documentId
+- workspaceId
+- departmentId
+- chunkIndex
+- text
+- embedding
+- pageStart
+- pageEnd
+- sectionTitle
+- sourceOffsets
+- embeddingModel
+- indexingVersion
+- createdAt
+
+**conversations**
+- organizationId
+- userId
+- workspaceId
+- title
+- status
+- createdAt
+- updatedAt
+
+**conversationMessages**
+- organizationId
+- conversationId
+- userId
+- role
+- content
+- status
+- usage metadata
+- createdAt
+
+**messageSources**
+- organizationId
+- messageId
+- documentId
+- chunkId
+- pageNumber
+- excerpt
+- relevance metadata
+- createdAt
+
+**answerFeedback**
+- organizationId
+- userId
+- messageId
+- rating
+- comment
+- category
+- createdAt
+
+**usageEvents**
+- organizationId
+- userId
+- eventType
+- model
+- inputTokens
+- outputTokens
+- embeddingTokens where available
+- latencyMs
+- estimatedCost
+- createdAt
+
+**auditLogs**
+- organizationId where applicable
+- actorId
+- action
+- resourceType
+- resourceId
+- requestId
+- metadata
+- createdAt
+
+**notifications**
+- organizationId
+- userId
+- type
+- title
+- body
+- readAt
+- createdAt
+
+### MongoDB implementation rules
+
+1. Use Mongoose or the official MongoDB driver consistently.
+2. Do not mix ORMs or database abstractions without a clear reason.
+3. Create indexes through versioned migrations or repeatable database setup scripts.
+4. Validate ObjectIds and reject malformed IDs safely.
+5. Enforce tenant scope in every repository function.
+6. Use projections to avoid fetching unnecessary sensitive fields.
+7. Use pagination and bounded query sizes.
+8. Use MongoDB aggregation pipelines for reporting and grouped metrics.
+9. Use transactions for operations requiring atomic updates across collections, when supported by the deployment.
+10. Design application workflows to tolerate retries and partial failures.
+11. Use idempotency keys or unique constraints where appropriate.
+12. Do not depend on MongoDB TTL indexes for immediate access revocation or security-critical deletion.
+13. Keep document file binaries in object storage rather than embedding large files in MongoDB records.
+14. Keep large message histories and chunk collections separate.
+15. Use appropriate shard keys and shard only when justified by scale requirements.
+16. Keep security-critical queries tenant-scoped and indexed.
+17. Use MongoDB Atlas Vector Search for vector retrieval rather than scanning embeddings in application code.
+
+### MongoDB consistency and integrity
+
+MongoDB does not automatically enforce every relational constraint.
+
+Therefore:
+- Validate organization, workspace, document, and membership relationships in application services.
+- Use unique and compound indexes to prevent duplicate memberships and duplicate invitations.
+- Use transactions when multi-document atomicity is necessary and supported.
+- Avoid unbounded arrays and excessive document embedding.
+- Handle orphaned records through explicit cleanup jobs.
+- Validate referenced records before creating or changing permissions.
+- Use safe retry behavior when transaction conflicts occur.
+
+### Vector index configuration
+
+Create and document an Atlas Vector Search index for `documentChunks`.
+
+Configure:
+- Embedding field
+- Correct vector dimensions
+- Similarity metric
+- organizationId as a filter field
+- documentId as a filter field
+- workspaceId as a filter field where supported
+- departmentId as a filter field where supported
+- Additional authorization metadata as supported by the selected index configuration
+
+Ensure the query's filter capabilities match the actual permission model. Do not assume every MongoDB Vector Search index supports every possible ACL expression.
+
+If complex document permissions cannot be represented safely in vector pre-filters, implement a secure candidate-validation and content-fetching strategy.
+
+Keep the vector index configuration in source control and document how to create or update it.
+
+---
+
+# 18. API DESIGN
+
+Build a versioned REST API with consistent response formats and validation.
+
+### Authentication
+- POST /api/v1/auth/signup
+- POST /api/v1/auth/login
+- POST /api/v1/auth/logout
+- POST /api/v1/auth/forgot-password
+- POST /api/v1/auth/reset-password
+
+Adapt these endpoints to the selected authentication framework.
+
+### Organizations
+- GET /api/v1/organizations
+- POST /api/v1/organizations
+- GET /api/v1/organizations/:organizationId
+- PATCH /api/v1/organizations/:organizationId
+
+### Documents
+- POST /api/v1/documents
+- GET /api/v1/documents
+- GET /api/v1/documents/:documentId
+- PATCH /api/v1/documents/:documentId
+- DELETE /api/v1/documents/:documentId
+- POST /api/v1/documents/:documentId/reindex
+- GET /api/v1/documents/:documentId/status
+- GET /api/v1/documents/:documentId/preview
+
+### Search
+- POST /api/v1/search
+- GET /api/v1/search/suggestions
+
+### Conversations
+- POST /api/v1/conversations
+- GET /api/v1/conversations
+- GET /api/v1/conversations/:conversationId
+- PATCH /api/v1/conversations/:conversationId
+- DELETE /api/v1/conversations/:conversationId
+
+### AI
+- POST /api/v1/chat
+- POST /api/v1/chat/stream
+- POST /api/v1/messages/:messageId/feedback
+
+### Team and access management
+- GET /api/v1/members
+- POST /api/v1/invitations
+- PATCH /api/v1/members/:memberId/role
+- DELETE /api/v1/members/:memberId
+- GET /api/v1/workspaces
+- POST /api/v1/workspaces
+- PATCH /api/v1/workspaces/:workspaceId
+- POST /api/v1/workspaces/:workspaceId/members
+
+### Analytics
+- GET /api/v1/analytics/overview
+- GET /api/v1/analytics/usage
+- GET /api/v1/analytics/costs
+- GET /api/v1/analytics/latency
+
+Choose appropriate HTTP methods and request formats. The routes above are illustrative and may be adapted for consistency.
+
+### API conventions
+- Validate every input.
+- Authenticate protected requests.
+- Authorize every resource access.
+- Use consistent error responses.
+- Implement pagination and filtering.
+- Apply rate limits.
+- Avoid returning internal stack traces.
+- Document endpoints using OpenAPI where practical.
+- Use request IDs for tracing.
+- Return HTTP status codes consistently.
+
+Never assume that a route is safe merely because its frontend page is protected.
+
+---
+
+# 19. DOCUMENT VIEWER AND CITATIONS
+
+Build an in-app document viewer.
+
+Features:
+- PDF preview
+- Page navigation
+- Search within document
+- Highlight citation excerpts where feasible
+- Jump directly to the cited page
+- Document metadata panel
+- Access-permission indicator
+- Download if authorized
+
+For DOCX, TXT, and Markdown, provide a safe preview based on extracted content.
+
+Citation objects must refer to actual indexed chunks.
+
+Each citation should contain:
+- Source document ID
+- Document title
+- Page number or section
+- Chunk ID
+- Relevant excerpt
+- Authorized document URL or preview route
+
+Resolve citations through the backend, checking current authorization before returning document metadata or content.
+
+A citation URL must never become an authorization bypass.
+
+---
+
+# 20. PERFORMANCE AND SCALABILITY
+
+Implement sensible performance practices.
+
+- MongoDB connection pooling
+- Indexed queries
+- Efficient pagination
+- Background processing
+- Batched embedding generation
+- Streaming AI responses
+- Request timeouts
+- Bounded retries
+- Rate limiting
+- Caching where appropriate
+- Query and retrieval latency tracking
+- Object storage for files
+- Worker concurrency controls
+
+### Caching rules
+- Cache only where useful.
+- Include tenant and authorization scope in cache design.
+- Revalidate permissions for protected resources.
+- Invalidate caches after permission changes or document deletion.
+- Never serve one user's private search results to another user.
+- Do not use shared answer caches unless access equivalence and invalidation are explicitly enforced.
+
+Set configurable limits for:
+- Maximum file size
+- Maximum number of uploaded files
+- Maximum document size
+- Maximum chunks per document
+- Maximum retrieved context
+- Maximum response tokens
+- Requests per user
+- Requests per organization
+
+Document expected limitations and scaling bottlenecks.
+
+---
+
+# 21. OBSERVABILITY AND ERROR HANDLING
+
+Implement:
+- Structured application logs
+- Request correlation IDs
+- Error tracking integration points
+- Health-check endpoint
+- Readiness checks
+- MongoDB connectivity checks
+- Redis connectivity checks
+- Worker health indicators
+- AI provider status
+- Queue depth monitoring
+- Processing duration metrics
+- API latency metrics
+
+Provide a system status page for authorized administrators.
+
+Do not reveal secrets, full prompts, or sensitive document content through logs, error messages, or monitoring dashboards.
+
+Differentiate between:
+- User validation errors
+- Authentication failures
+- Authorization failures
+- AI provider errors
+- Rate-limit errors
+- Document parsing errors
+- Internal server errors
+
+Return safe, understandable error messages to users.
+
+---
+
+# 22. TESTING REQUIREMENTS
+
+Implement meaningful tests, not just a few placeholder assertions.
+
+### Unit tests
+- Authorization policy functions
+- Document permission evaluation
+- Chunking logic
+- Citation mapping
+- Retrieval ranking utilities
+- Cost calculations
+- Input validation
+
+### Integration tests
+- Document upload
+- Indexing pipeline
+- MongoDB persistence
+- Vector retrieval
+- Hybrid search
+- Conversation persistence
+- Feedback submission
+- Permission updates
+- Document deletion and cleanup
+
+### Security tests
+- Cross-organization document access
+- Cross-organization conversation access
+- Unauthorized search
+- Unauthorized citation access
+- Revoked workspace membership
+- Document-level permission changes
+- Guessed resource IDs
+- Malicious upload attempts
+- Prompt injection in retrieved documents
+- Cache isolation
+- Concurrent permission changes
+
+### End-to-end tests
+- Create an organization
+- Invite a member
+- Upload a document
+- Wait for indexing
+- Ask a question
+- Verify the answer references a real source
+- Open the citation
+- Revoke document access
+- Verify the user can no longer retrieve that document's content
+
+Use isolated test data. Do not depend on production accounts or paid AI calls for every automated test.
+
+Mock provider responses for most automated tests while maintaining a separate integration test for the real provider.
+
+---
+
+# 23. DEMO AND SAMPLE DATA
+
+Provide a seed script that creates a clearly labeled demo organization with sample users, departments, workspaces, and fictional company documents.
+
+Include examples such as:
+- Employee Handbook
+- Leave Policy
+- IT Security Policy
+- Product Documentation
+- Onboarding Guide
+
+Use fictional content only.
+
+Provide a demo administrator and employee setup through a documented local development process. Do not hardcode production credentials or ship an insecure public admin account.
+
+If a demo mode is provided, make it obvious that the data is fictional and prevent demo mode from bypassing authorization.
+
+---
+
+# 24. ENVIRONMENT CONFIGURATION
+
+Create a complete `.env.example`.
+
+Include appropriately named variables for:
+- MongoDB connection URI
+- MongoDB database name
+- Redis connection
+- Authentication secret
+- Application URL
+- AI provider API key
+- Chat model
+- Embedding model
+- Object storage endpoint
+- Object storage bucket
+- Object storage access credentials
+- Email provider credentials if used
+- Logging and monitoring configuration
+
+Never include real secrets in the repository.
+
+Validate required environment variables at application startup and provide actionable error messages.
+
+Provide separate configuration guidance for local development, testing, and production.
+
+Document the MongoDB Atlas requirements for Vector Search, search indexes, supported deployment configuration, and database access permissions.
+
+---
+
+# 25. DEPLOYMENT AND DEVOPS
+
+Provide:
+- Dockerfile
+- Docker Compose configuration
+- MongoDB for local development
+- Redis
+- Web application
+- Background worker
+- Database and index initialization scripts
+- Seed command
+- Production build
+- CI workflow
+- Health checks
+
+Document deployment options for:
+- Frontend and API
+- MongoDB Atlas
+- Redis
+- Background workers
+- Object storage
+
+Ensure the production hosting environment supports persistent database connections, required MongoDB search capabilities, background jobs, and streaming responses.
+
+Do not deploy the background worker as a short-lived serverless request if the hosting environment cannot support persistent workers.
+
+Document:
+- Database backup and restoration
+- Secret configuration
+- Database and search-index migrations
+- Worker scaling
+- Logging
+- Monitoring
+- File retention
+- Disaster recovery basics
+
+The application must run locally with a clear set of commands.
+
+---
+
+# 26. REQUIRED PROJECT STRUCTURE
+
+Use a clean, maintainable structure. Adapt it to the chosen architecture.
+
+Example:
+
+nexusiq/
+├── apps/
+│   ├── web/
+│   │   ├── app/
+│   │   ├── components/
+│   │   ├── features/
+│   │   ├── hooks/
+│   │   └── lib/
+│   └── worker/
+│       └── src/
+├── packages/
+│   ├── database/
+│   ├── shared/
+│   ├── validation/
+│   └── ai/
+├── database/
+│   ├── models/
+│   ├── indexes/
+│   ├── validators/
+│   └── migrations/
+├── tests/
+│   ├── unit/
+│   ├── integration/
+│   └── e2e/
+├── docker/
+├── docs/
+│   ├── architecture.md
+│   ├── security.md
+│   ├── threat-model.md
+│   ├── api.md
+│   └── deployment.md
+├── .github/
+│   └── workflows/
+├── docker-compose.yml
+├── .env.example
+├── README.md
+└── package.json
+
+Use a monorepo only if it improves maintainability. Avoid unnecessary abstractions.
+
+---
+
+# 27. UI PAGES TO IMPLEMENT
+
+Create complete, functional pages for:
+
+1. Landing page
+2. Sign-up page
+3. Sign-in page
+4. Forgot-password page
+5. Organization onboarding
+6. Main dashboard
+7. AI assistant
+8. Conversation history
+9. Knowledge search
+10. Document library
+11. Document upload dialog
+12. Document details and preview
+13. Document permissions editor
+14. Workspace list
+15. Workspace details
+16. Department management
+17. Team member management
+18. Invitation management
+19. Notifications
+20. Activity and audit logs
+21. Analytics dashboard
+22. Organization settings
+23. AI configuration
+24. User profile
+25. Access-denied page
+26. Not-found page
+27. Error page
+28. System health page for authorized administrators
+
+Each page must be connected to the actual application logic.
+
+---
+
+# 28. IMPLEMENTATION RULES
+
+Follow these rules throughout development.
+
+1. Inspect the existing repository before changing files.
+2. If the repository already contains code, preserve working features and adapt the existing architecture instead of blindly replacing everything.
+3. Establish a coherent architecture before implementation.
+4. Implement the MongoDB data models, validation, and indexes early.
+5. Use strict TypeScript types.
+6. Avoid `any` unless a specific, justified case requires it.
+7. Never hardcode fake API responses as a substitute for core functionality.
+8. Do not build buttons that look functional but do nothing.
+9. Do not claim that a feature is complete until its core workflow works.
+10. Do not expose API keys in client-side bundles.
+11. Do not bypass permissions to make the demo easier.
+12. Do not send unauthorized content to the AI provider.
+13. Implement useful loading, empty, success, and error states.
+14. Keep components reusable without overengineering.
+15. Keep business logic separate from UI components.
+16. Version database model and index changes.
+17. Add tests for important business and security logic.
+18. Run formatting, linting, type checks, tests, and production builds.
+19. Fix actual errors rather than suppressing them.
+20. Update documentation whenever implementation changes.
+
+If a required external service cannot be configured, provide a clear setup guide and a safe local development alternative. Do not falsely report that the integration is working.
+
+---
+
+# 29. DEVELOPMENT PHASES
+
+Implement the project in the following order.
+
+### Phase 1 — Foundation
+- Repository structure
+- UI design system
+- MongoDB connection and configuration
+- Data models and schema validation
+- Database indexes
+- Authentication
+- Organizations
+- Memberships
+- Role-based authorization
+- Local development environment
+
+### Phase 2 — Knowledge Management
+- Object storage
+- Document upload
+- Document library
+- Workspaces and departments
+- Document permissions
+- Background queue
+- Document parsing and indexing
+
+### Phase 3 — AI Retrieval
+- Embedding integration
+- MongoDB Atlas Vector Search
+- MongoDB-supported full-text search
+- Hybrid retrieval
+- Authorization-filtered retrieval
+- RAG answer generation
+- Streaming responses
+- Source citations
+
+### Phase 4 — Enterprise Features
+- Conversation history
+- Feedback
+- Notifications
+- Audit logs
+- Team administration
+- Search filters
+- Document viewer
+
+### Phase 5 — Analytics and Reliability
+- Usage tracking
+- AI cost estimates
+- Latency metrics
+- Admin dashboard
+- Queue monitoring
+- Error handling
+- Rate limiting
+- Security hardening
+
+### Phase 6 — Testing and Delivery
+- Unit and integration tests
+- Security regression tests
+- End-to-end tests
+- Docker configuration
+- CI pipeline
+- Deployment guide
+- Final README
+- Architecture documentation
+- Demo preparation
+
+At the end of every phase:
+- Run type checks and relevant tests.
+- Verify the implemented workflow manually.
+- Fix regressions before moving forward.
+- Update the task checklist.
+- List completed features, remaining work, and required environment variables.
+
+---
+
+# 30. ACCEPTANCE CRITERIA
+
+The project is complete only when these workflows work end to end.
+
+1. A user can create an account and join an organization.
+2. An organization admin can invite members and assign roles.
+3. An authorized user can create a workspace.
+4. An authorized user can upload a supported document.
+5. The file is stored privately and indexed asynchronously.
+6. The UI shows actual indexing progress and failures.
+7. An authorized user can ask a question about the indexed document.
+8. The AI produces a grounded answer with valid source citations.
+9. A citation opens the correct authorized document and page.
+10. An unsupported question produces an honest no-evidence response.
+11. A user cannot retrieve another organization's documents or conversations.
+12. A user cannot retrieve documents from an unauthorized department or workspace.
+13. Revoking access prevents future retrieval and citation access.
+14. Deleted documents disappear from search and RAG retrieval.
+15. Administrators can inspect real usage, latency, processing failures, and estimated AI costs.
+16. Feedback and audit events persist correctly.
+17. The application handles provider errors and queue failures gracefully.
+18. Security tests verify the critical authorization boundaries.
+19. The application can be run locally using the documented setup.
+20. Production build, type checks, and required tests pass.
+
+Do not mark an acceptance criterion complete based solely on a UI screenshot.
+
+---
+
+# 31. FINAL DELIVERABLES
+
+Deliver:
+- Complete source code
+- Functional responsive frontend
+- Working backend APIs
+- MongoDB data models and indexes
+- Secure authentication and authorization
+- Document upload and processing pipeline
+- Real embedding and retrieval integration
+- RAG chat with citations
+- Workspace and department management
+- Admin analytics
+- Tests
+- Docker configuration
+- `.env.example`
+- Seed data
+- API documentation
+- Architecture documentation
+- Security and threat-model documentation
+- Complete README with setup and deployment instructions
+
+Start by inspecting the repository and creating an implementation plan.
+
+Then implement Phase 1 and continue phase by phase. If execution limits prevent completion in one session, finish the current phase in a working state, clearly report what is complete and what remains, and provide exact next steps.
+
+**Final objective:** Deliver a secure, functional, well-tested, enterprise-style AI knowledge platform that demonstrates strong full-stack engineering, practical RAG implementation, background job processing, MongoDB data modeling, access-control security, observability, and production-oriented development practices.

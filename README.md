@@ -343,7 +343,7 @@ It demonstrates how AI can be integrated into real-world enterprise workflows wh
 
 **Ujjwal Awasthi**
 
-B.Tech – Electronics & Communication Engineering
+B.Tech – Computer Science & Engineering
 
 Interested in Software Development, Backend Engineering, Full-Stack Development, and AI-powered Applications.
 
